@@ -57,10 +57,23 @@ class UserProfileController extends Controller
         return response()->json(['message' => 'Status pengguna berhasil diperbarui']);
     }
 
-    // Superadmin melihat daftar admin
-    public function listAdmins()
+    // Superadmin melihat daftar admin + fitur search by name / nama_pengguna
+    public function listAdmins(Request $request)
     {
-        $admins = User::where('role', 'admin')->get();
+        if (Auth::user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Akses ditolak.'], 403);
+        }
+
+        $search = $request->query('search');
+
+        $admins = User::where('role', 'admin')
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%')
+                      ->orWhere('nama_pengguna', 'like', '%' . $search . '%');
+                });
+            })
+            ->get();
 
         return response()->json($admins);
     }

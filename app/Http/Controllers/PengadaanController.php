@@ -15,21 +15,16 @@ class PengadaanController extends Controller
             'nama_perusahaan' => 'required|string',
             'jenis_bank' => 'required|in:mandiri,bca,bri',
             'no_rekening' => 'required|string',
-
-            // Validasi dengan format 1234/12/11C30/2024
             'no_preorder' => ['required', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
             'tanggal_pengadaan' => 'required|date',
             'jenis_pengadaan_barang' => 'required|in:beras,gabah',
             'kuantum' => 'required|string',
-
-            'in_data' => 'nullable|array', // array dari no_in, tanggal_in, kuantum_in
+            'in_data' => 'nullable|array',
             'in_data.*.no_in' => 'nullable|numeric',
             'in_data.*.tanggal_in' => 'nullable|date',
             'in_data.*.kuantum_in' => 'nullable|string',
-
             'jumlah_pembayaran' => 'required|string',
             'spp' => 'required|integer',
-            
         ]);
 
         $pengadaan = new Pengadaan();
@@ -37,19 +32,14 @@ class PengadaanController extends Controller
         $pengadaan->nama_perusahaan = $request->nama_perusahaan;
         $pengadaan->jenis_bank = $request->jenis_bank;
         $pengadaan->no_rekening = $request->no_rekening;
-
         $pengadaan->no_preorder = $request->no_preorder;
         $pengadaan->tanggal_pengadaan = $request->tanggal_pengadaan;
         $pengadaan->jenis_pengadaan_barang = $request->jenis_pengadaan_barang;
         $pengadaan->kuantum = $request->kuantum;
-
-        $pengadaan->in_data = json_encode($request->in_data); // disimpan sebagai JSON array
-
+        $pengadaan->in_data = json_encode($request->in_data);
         $pengadaan->jumlah_pembayaran = $request->jumlah_pembayaran;
         $pengadaan->spp = $request->spp;
-
         $pengadaan->user_id = auth()->id();
-
         $pengadaan->save();
 
         return response()->json(['message' => 'Data berhasil disimpan']);
@@ -61,15 +51,27 @@ class PengadaanController extends Controller
         return response()->json($data);
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+        $search = $request->query('search');
 
-        if ($user->role === 'superadmin') {
-            $pengadaan = Pengadaan::with('user')->get(); // semua data
-        } else {
-            $pengadaan = Pengadaan::with('user')->where('user_id', $user->id)->get(); // hanya milik sendiri
+        $query = Pengadaan::with('user');
+
+        if ($user->role === 'admin') {
+            $query->where('user_id', $user->id);
         }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('jenis_pengadaan_barang', 'like', '%' . $search . '%')
+                  ->orWhere('no_preorder', 'like', '%' . $search . '%')
+                  ->orWhere('nama_suplier', 'like', '%' . $search . '%')
+                  ->orWhere('nama_perusahaan', 'like', '%' . $search . '%');
+            });
+        }
+
+        $pengadaan = $query->latest()->get();
 
         return response()->json($pengadaan);
     }
@@ -77,7 +79,6 @@ class PengadaanController extends Controller
     public function show($id)
     {
         $pengadaan = Pengadaan::with('user')->findOrFail($id);
-        
         $this->authorizeAccess($pengadaan);
 
         return response()->json($pengadaan);
@@ -86,24 +87,32 @@ class PengadaanController extends Controller
     public function update(Request $request, $id)
     {
         $pengadaan = Pengadaan::findOrFail($id);
-
         $this->authorizeAccess($pengadaan);
 
         $request->validate([
-            'nama_suplier' => 'string',
-            'nama_perusahaan' => 'string',
-            'jenis_bank' => 'in:mandiri,bca,bri',
-            'no_rekening' => 'string',
-            'no_preorder' => ['regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
-            'tanggal_pengadaan' => 'date',
-            'jenis_pengadaan_barang' => 'in:beras,gabah',
-            'kuantum' => 'string',
+            'nama_suplier' => 'sometimes|string',
+            'nama_perusahaan' => 'sometimes|string',
+            'jenis_bank' => 'sometimes|in:mandiri,bca,bri',
+            'no_rekening' => 'sometimes|string',
+            'no_preorder' => ['sometimes', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
+            'tanggal_pengadaan' => 'sometimes|date',
+            'jenis_pengadaan_barang' => 'sometimes|in:beras,gabah',
+            'kuantum' => 'sometimes|string',
             'in_data' => 'nullable|array',
-            'jumlah_pembayaran' => 'string',
-            'spp' => 'integer',
+            'in_data.*.no_in' => 'nullable|numeric',
+            'in_data.*.tanggal_in' => 'nullable|date',
+            'in_data.*.kuantum_in' => 'nullable|string',
+            'jumlah_pembayaran' => 'sometimes|string',
+            'spp' => 'sometimes|integer',
         ]);
 
-        $pengadaan->update($request->all());
+        // Pastikan `in_data` tetap dalam bentuk JSON saat disimpan
+        $data = $request->all();
+        if ($request->has('in_data')) {
+            $data['in_data'] = json_encode($request->in_data);
+        }
+
+        $pengadaan->update($data);
 
         return response()->json(['message' => 'Data berhasil diperbarui']);
     }
@@ -111,9 +120,7 @@ class PengadaanController extends Controller
     public function destroy($id)
     {
         $pengadaan = Pengadaan::findOrFail($id);
-
         $this->authorizeAccess($pengadaan);
-
         $pengadaan->delete();
 
         return response()->json(['message' => 'Data berhasil dihapus']);
@@ -122,7 +129,6 @@ class PengadaanController extends Controller
     public function download($id)
     {
         $pengadaan = Pengadaan::findOrFail($id);
-
         $this->authorizeAccess($pengadaan);
 
         $content = json_encode($pengadaan, JSON_PRETTY_PRINT);
@@ -130,7 +136,7 @@ class PengadaanController extends Controller
 
         return response($content, 200)
             ->header('Content-Type', 'application/json')
-            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
     protected function authorizeAccess(Pengadaan $pengadaan)
