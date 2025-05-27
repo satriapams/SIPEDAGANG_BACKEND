@@ -12,6 +12,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user/update-profile', [UserProfileController::class, 'updateProfile']);
     Route::post('/user/update-status/{id}', [UserProfileController::class, 'updateStatus']);
 });
+
+
+
 Route::middleware(['auth:sanctum', 'role:superadmin'])->get('/admin/list', [UserProfileController::class, 'listAdmins']);
 
 
@@ -21,15 +24,15 @@ Route::middleware('auth:sanctum')->get('/pengadaan/suplier/{nama}', [PengadaanCo
 
 Route::post('/login', function (Request $request) {
     $request->validate([
-        'email' => 'required|email',
+        'nama_pengguna' => 'required|string',
         'password' => 'required'
     ]);
 
-    $user = User::where('email', $request->email)->first();
+    $user = User::where('nama_pengguna', $request->nama_pengguna)->first();
 
     
     if (!$user || !\Hash::check($request->password, $user->password)) {
-        return response()->json(['message' => 'Login gagal: email atau password salah'], 401);
+        return response()->json(['message' => 'Login gagal: nama_pengguna atau password salah'], 401);
     }
 
     
@@ -59,7 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/pengadaan', [PengadaanController::class, 'index']);
     Route::get('/pengadaan/{id}', [PengadaanController::class, 'show']);
     Route::put('/pengadaan/{id}', [PengadaanController::class, 'update']);
-    Route::delete('/pengadaan/{id}', [PengadaanController::class, 'destroy']);
+    Route::delete('/pengadaan/{id}', [PengadaanController::class, 'destroy']);  
     Route::get('/pengadaan/{id}/download', [PengadaanController::class, 'download']);
 });
 

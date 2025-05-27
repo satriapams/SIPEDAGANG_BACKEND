@@ -20,7 +20,7 @@ class AdminManagementController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'nama_pengguna' => 'required|string|max:255|unique:users',
             'password' => 'required|string|min:6|confirmed',
         ]);
 
@@ -32,9 +32,10 @@ class AdminManagementController extends Controller
 
         $admin = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'nama_pengguna' => $request->nama_pengguna,
             'password' => Hash::make($request->password),
             'role' => 'admin',
+            'status' => 'active', // set default status
         ]);
 
         return response()->json([
@@ -42,6 +43,4 @@ class AdminManagementController extends Controller
             'admin' => $admin,
         ]);
     }
-
 }
-

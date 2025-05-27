@@ -15,10 +15,10 @@ class ResetPasswordController extends Controller
     public function requestReset(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|exists:users,name',
+            'nama_pengguna' => 'required|string|exists:users,nama_pengguna',
         ]);
 
-        $admin = User::where('name', $request->name)
+        $admin = User::where('nama_pengguna', $request->nama_pengguna)
                     ->where('role', 'admin')
                     ->first();
 
@@ -66,11 +66,11 @@ class ResetPasswordController extends Controller
     {
         try {
             $request->validate([
-                'name' => 'required|string|exists:users,name',
+                'nama_pengguna' => 'required|string|exists:users,nama_pengguna',
                 'password' => 'required|min:6|confirmed',
             ]);
 
-            $user = User::where('name', $request->name)
+            $user = User::where('nama_pengguna', $request->nama_pengguna)
                         ->where('role', 'admin')
                         ->firstOrFail();
 

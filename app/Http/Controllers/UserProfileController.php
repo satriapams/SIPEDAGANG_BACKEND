@@ -22,16 +22,21 @@ class UserProfileController extends Controller
         if ($request->hasFile('profile_photo')) {
             $file = $request->file('profile_photo');
             $filename = 'profile_' . $user->id . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('public/profile_photos', $filename); // simpan ke storage/app/public/profile_photos
 
-            // Simpan path ke DB
+            // Simpan ke disk 'public' => storage/app/public/profile_photos
+            $file->storeAs('profile_photos', $filename, 'public');
+
+            // Simpan path ke DB (akses URL: /storage/profile_photos/xxx.jpg)
             $user->profile_photo = 'storage/profile_photos/' . $filename;
         }
 
         $user->phone_number = $request->phone_number;
         $user->save();
 
-        return response()->json(['message' => 'Profil berhasil diperbarui', 'profile_photo' => $user->profile_photo]);
+        return response()->json([
+            'message' => 'Profil berhasil diperbarui',
+            'profile_photo' => $user->profile_photo
+        ]);
     }
 
     // Superadmin mengubah status user
@@ -52,12 +57,11 @@ class UserProfileController extends Controller
         return response()->json(['message' => 'Status pengguna berhasil diperbarui']);
     }
 
+    // Superadmin melihat daftar admin
     public function listAdmins()
     {
         $admins = User::where('role', 'admin')->get();
 
         return response()->json($admins);
     }
-
 }
-
