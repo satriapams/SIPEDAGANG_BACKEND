@@ -55,6 +55,7 @@ class PengadaanController extends Controller
     {
         $user = Auth::user();
         $search = $request->query('search');
+        $bulan = $request->query('bulan');
 
         $query = Pengadaan::with('user');
 
@@ -69,6 +70,16 @@ class PengadaanController extends Controller
                   ->orWhere('nama_suplier', 'like', '%' . $search . '%')
                   ->orWhere('nama_perusahaan', 'like', '%' . $search . '%');
             });
+        }
+
+        if ($bulan) {
+            try {
+                [$year, $month] = explode('-', $bulan);
+                $query->whereYear('tanggal_pengadaan', $year)
+                    ->whereMonth('tanggal_pengadaan', $month);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Format bulan tidak valid. Gunakan format YYYY-MM.'], 422);
+            }
         }
 
         $pengadaan = $query->latest()->get();
