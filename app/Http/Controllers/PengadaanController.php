@@ -27,6 +27,25 @@ class PengadaanController extends Controller
             'spp' => 'required|integer',
         ]);
 
+        $existing = Pengadaan::where('no_preorder', $request->no_preorder)->first();
+
+        if ($existing) {
+            if (
+                $existing->nama_suplier === $request->nama_suplier &&
+                $existing->nama_perusahaan === $request->nama_perusahaan &&
+                $existing->jenis_pengadaan_barang === $request->jenis_pengadaan_barang
+            ) {
+                // Jumlahkan kuantum
+                $existing->kuantum = $this->jumlahkanKuantum($existing->kuantum, $request->kuantum);
+                $existing->save();
+
+                return response()->json(['message' => 'Data berhasil diperbarui dengan penambahan kuantum.'], 200);
+            } else {
+                return response()->json(['message' => 'Gagal menambahkan: no_preorder sudah digunakan oleh data dengan suplier/perusahaan/barang yang berbeda.'], 409);
+            }
+        }
+
+        // Simpan data baru
         $pengadaan = new Pengadaan();
         $pengadaan->nama_suplier = $request->nama_suplier;
         $pengadaan->nama_perusahaan = $request->nama_perusahaan;
@@ -42,7 +61,15 @@ class PengadaanController extends Controller
         $pengadaan->user_id = auth()->id();
         $pengadaan->save();
 
-        return response()->json(['message' => 'Data berhasil disimpan']);
+        return response()->json(['message' => 'Data berhasil disimpan'], 201);
+    }
+
+    private function jumlahkanKuantum($kuantumLama, $kuantumBaru)
+    {
+        $angkaLama = (float) filter_var($kuantumLama, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+        $angkaBaru = (float) filter_var($kuantumBaru, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+        $total = $angkaLama + $angkaBaru;
+        return $total . ' ton';
     }
 
     public function getSuplierData($nama)
@@ -56,7 +83,7 @@ class PengadaanController extends Controller
         $user = Auth::user();
         $search = $request->query('search');
         $bulan = $request->query('bulan');
-
+        $perPage = $request->query('per_page', 10); // default 10
         $query = Pengadaan::with('user');
 
         if ($user->role === 'admin') {
@@ -66,9 +93,9 @@ class PengadaanController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('jenis_pengadaan_barang', 'like', '%' . $search . '%')
-                  ->orWhere('no_preorder', 'like', '%' . $search . '%')
-                  ->orWhere('nama_suplier', 'like', '%' . $search . '%')
-                  ->orWhere('nama_perusahaan', 'like', '%' . $search . '%');
+                ->orWhere('no_preorder', 'like', '%' . $search . '%')
+                ->orWhere('nama_suplier', 'like', '%' . $search . '%')
+                ->orWhere('nama_perusahaan', 'like', '%' . $search . '%');
             });
         }
 
@@ -82,10 +109,11 @@ class PengadaanController extends Controller
             }
         }
 
-        $pengadaan = $query->latest()->get();
+        $pengadaan = $query->orderByDesc('tanggal_pengadaan')->paginate($perPage);
 
         return response()->json($pengadaan);
     }
+
 
     public function show($id)
     {
