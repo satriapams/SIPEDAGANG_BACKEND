@@ -58,13 +58,16 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/pengadaan', [PengadaanController::class, 'index']);
-    Route::get('/pengadaan/{id}', [PengadaanController::class, 'show']);
-    Route::put('/pengadaan/{id}', [PengadaanController::class, 'update']);
-    Route::delete('/pengadaan/{id}', [PengadaanController::class, 'destroy']);  
-    Route::get('/pengadaan/{id}/download', [PengadaanController::class, 'download']);
+Route::middleware('auth:sanctum')->prefix('pengadaan')->group(function () {
+    Route::post('/', [PengadaanController::class, 'store']);
+    Route::get('/', [PengadaanController::class, 'index']);
+    Route::get('/suplier/{nama}', [PengadaanController::class, 'getSuplierData']);
+    Route::get('/{id}', [PengadaanController::class, 'show']);
+    Route::put('/{id}', [PengadaanController::class, 'update']);
+    Route::delete('/{id}', [PengadaanController::class, 'destroy']);
+    Route::get('/{id}/download', [PengadaanController::class, 'download']);
 });
+
 
 Route::post('/reset/request', [ResetPasswordController::class, 'requestReset']); // admin minta reset
 Route::middleware('auth:sanctum')->post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']); // superadmin approve
