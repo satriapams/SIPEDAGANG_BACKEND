@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Pengadaan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+
 
 class PengadaanController extends Controller
 {
     public function store(Request $request)
     {
+        try {
         $request->validate([
             'nama_suplier' => 'required|string',
             'nama_perusahaan' => 'required|string',
@@ -18,14 +21,20 @@ class PengadaanController extends Controller
             'no_preorder' => ['required', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
             'tanggal_pengadaan' => 'required|date',
             'jenis_pengadaan_barang' => 'required|string',
-            'kuantum' => ['required', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
+            'kuantum' => ['required', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
             'in_data' => 'nullable|array',
             'in_data.*.no_in' => 'nullable|numeric',
             'in_data.*.tanggal_in' => 'nullable|date',
-            'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
-            'jumlah_pembayaran' => ['required', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
+            'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+            'jumlah_pembayaran' => ['required', 'regex:/^\d+(\.\d+)?\s*[A-Za-z]+$/i'],
             'spp' => 'required|integer',
         ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors(),
+            ], 422);
+        }
 
         $existing = Pengadaan::where('no_preorder', $request->no_preorder)->first();
 
@@ -140,23 +149,30 @@ class PengadaanController extends Controller
     {
         $pengadaan = Pengadaan::findOrFail($id);
         $this->authorizeAccess($pengadaan);
-
-        $request->validate([
-            'nama_suplier' => 'sometimes|string',
-            'nama_perusahaan' => 'sometimes|string',
-            'jenis_bank' => 'sometimes|in:MANDIRI,BCA,BRI,BANK JATENG,BNI',
-            'no_rekening' => 'sometimes|string',
-            'no_preorder' => ['sometimes', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
-            'tanggal_pengadaan' => 'sometimes|date',
-            'jenis_pengadaan_barang' => 'sometimes|string',
-            'kuantum' => ['sometimes', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
-            'in_data' => 'nullable|array',
-            'in_data.*.no_in' => 'nullable|numeric',
-            'in_data.*.tanggal_in' => 'nullable|date',
-            'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
-            'jumlah_pembayaran' => ['sometimes', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
-            'spp' => 'sometimes|integer',
+        try {
+            $request->validate([
+                'nama_suplier' => 'sometimes|string',
+                'nama_perusahaan' => 'sometimes|string',
+                'jenis_bank' => 'sometimes|in:MANDIRI,BCA,BRI,BANK JATENG,BNI',
+                'no_rekening' => 'sometimes|string',
+                'no_preorder' => ['sometimes', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
+                'tanggal_pengadaan' => 'sometimes|date',
+                'jenis_pengadaan_barang' => 'sometimes|string',
+                'kuantum' => ['sometimes', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
+                'in_data' => 'nullable|array',
+                'in_data.*.no_in' => 'nullable|numeric',
+                'in_data.*.tanggal_in' => 'nullable|date',
+                'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
+                'jumlah_pembayaran' => ['sometimes', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
+                'spp' => 'sometimes|integer',
         ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors(),
+            ], 422);
+        }
 
         $data = $request->all();
 
