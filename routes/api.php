@@ -3,25 +3,18 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminManagementController;
-use App\Models\User;
 use App\Http\Controllers\PengadaanController;
 use App\Http\Controllers\ResetPasswordController;
 use App\Http\Controllers\UserProfileController;
+use App\Models\User;
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/user/update-profile', [UserProfileController::class, 'updateProfile']);
-    Route::post('/user/update-status/{id}', [UserProfileController::class, 'updateStatus']);
-});
+/*
+|--------------------------------------------------------------------------
+| Public Routes
+|--------------------------------------------------------------------------
+*/
 
-
-
-Route::middleware(['auth:sanctum', 'role:superadmin'])->get('/admin/list', [UserProfileController::class, 'listAdmins']);
-
-
-Route::middleware(['auth:sanctum'])->post('/pengadaan', [PengadaanController::class, 'store']);
-
-Route::middleware('auth:sanctum')->get('/pengadaan/suplier/{nama}', [PengadaanController::class, 'getSuplierData']);
-
+// Login
 Route::post('/login', function (Request $request) {
     $request->validate([
         'nama_pengguna' => 'required|string',
@@ -30,12 +23,10 @@ Route::post('/login', function (Request $request) {
 
     $user = User::where('nama_pengguna', $request->nama_pengguna)->first();
 
-    
     if (!$user || !\Hash::check($request->password, $user->password)) {
         return response()->json(['message' => 'Login gagal: nama_pengguna atau password salah'], 401);
     }
 
-    
     if ($user->status !== 'active') {
         return response()->json(['message' => 'Akun tidak aktif. Silakan hubungi superadmin.'], 403);
     }
@@ -48,29 +39,67 @@ Route::post('/login', function (Request $request) {
     ]);
 });
 
-Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
-    $request->user()->currentAccessToken()->delete();
-    return response()->json(['message' => 'Logged out']);
+// Reset password (tanpa login)
+Route::post('/reset/request', [ResetPasswordController::class, 'requestReset']);
+Route::post('/reset/password', [ResetPasswordController::class, 'resetPassword']);
+
+
+/*
+|--------------------------------------------------------------------------
+| Authenticated Routes (sanctum)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Logout
+    Route::post('/logout', function (Request $request) {
+        $request->user()->currentAccessToken()->delete();
+        return response()->json(['message' => 'Logged out']);
+    });
+
+    // Ambil user login sekarang
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    // Profil User (Admin & Superadmin)
+    Route::post('/user/update-profile', [UserProfileController::class, 'updateProfile']);
+    Route::post('/user/update-status/{id}', [UserProfileController::class, 'updateStatus']);
+
+    // Pengadaan
+    Route::prefix('pengadaan')->group(function () {
+        Route::post('/', [PengadaanController::class, 'store']);
+        Route::get('/', [PengadaanController::class, 'index']);
+        Route::get('/suplier/{nama}', [PengadaanController::class, 'getSuplierData']);
+        Route::get('/{id}', [PengadaanController::class, 'show']);
+        Route::put('/{id}', [PengadaanController::class, 'update']);
+        Route::delete('/{id}', [PengadaanController::class, 'destroy']);
+        Route::get('/{id}/download', [PengadaanController::class, 'download']);
+    });
+
+    // Admin management (akses superadmin & admin)
+    Route::get('/admin/list/{id_admin}', [AdminManagementController::class, 'show']);
+    Route::put('/admin/list/{id_admin}', [AdminManagementController::class, 'update']);
+
+    // Reset password list (khusus superadmin)
+    Route::get('/reset/list', [ResetPasswordController::class, 'listResetRequests']);
+
+    // Approve reset password (superadmin)
+    Route::post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']);
 });
 
-Route::middleware(['auth:sanctum', 'role:superadmin'])->post('/admin', [AdminManagementController::class, 'store']);
-Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
-    return $request->user();
+
+/*
+|--------------------------------------------------------------------------
+| Superadmin-Only Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth:sanctum', 'role:superadmin'])->group(function () {
+    // Tambah admin
+    Route::post('/admin', [AdminManagementController::class, 'store']);
+
+    // Lihat semua admin
+    Route::get('/admin/list', [UserProfileController::class, 'listAdmins']);
 });
-
-Route::middleware('auth:sanctum')->prefix('pengadaan')->group(function () {
-    Route::post('/', [PengadaanController::class, 'store']);
-    Route::get('/', [PengadaanController::class, 'index']);
-    Route::get('/suplier/{nama}', [PengadaanController::class, 'getSuplierData']);
-    Route::get('/{id}', [PengadaanController::class, 'show']);
-    Route::put('/{id}', [PengadaanController::class, 'update']);
-    Route::delete('/{id}', [PengadaanController::class, 'destroy']);
-    Route::get('/{id}/download', [PengadaanController::class, 'download']);
-});
-
-
-Route::post('/reset/request', [ResetPasswordController::class, 'requestReset']); // admin minta reset
-Route::middleware('auth:sanctum')->post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']); // superadmin approve
-Route::post('/reset/password', [ResetPasswordController::class, 'resetPassword']); // admin ubah password
-Route::middleware('auth:sanctum')->get('/reset/list', [ResetPasswordController::class, 'listResetRequests']); // superadmin lihat permintaan
-
