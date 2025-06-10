@@ -61,6 +61,26 @@ class ResetPasswordController extends Controller
         return response()->json(['message' => 'Permintaan reset disetujui']);
     }
 
+    // 5. Superadmin menolak permintaan reset
+    public function declineRequest($id)
+    {
+        $reset = ResetRequest::findOrFail($id);
+
+        if (Auth::user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Akses ditolak. Hanya superadmin yang dapat menolak.'], 403);
+        }
+
+        if ($reset->status !== 'pending') {
+            return response()->json(['message' => 'Permintaan ini sudah diproses.'], 400);
+        }
+
+        $reset->status = 'declined';
+        $reset->save();
+
+        return response()->json(['message' => 'Permintaan reset ditolak.']);
+    }
+
+
     // 3. Admin mengganti password setelah disetujui
     public function resetPassword(Request $request)
     {
@@ -75,15 +95,28 @@ class ResetPasswordController extends Controller
                         ->firstOrFail();
 
             $resetRequest = ResetRequest::where('admin_id', $user->id)
-                                        ->where('status', 'approved')
                                         ->latest()
                                         ->first();
 
             if (!$resetRequest) {
+                return response()->json(['message' => 'Tidak ada permintaan reset password.'], 403);
+            }
+
+            if ($resetRequest->status === 'pending') {
                 return response()->json(['message' => 'Permintaan belum disetujui superadmin.'], 403);
             }
 
+            if ($resetRequest->status === 'declined') {
+                return response()->json(['message' => 'Permintaan ganti password ditolak oleh superadmin.'], 403);
+            }
+
+            if ($resetRequest->status === 'used') {
+                return response()->json(['message' => 'Permintaan ini sudah digunakan.'], 403);
+            }
+
+            // Jika status = approved, lanjut ganti password
             $user->password = Hash::make($request->password);
+            $user->plain_password = $request->password;
             $user->save();
 
             $resetRequest->status = 'used';
@@ -99,6 +132,7 @@ class ResetPasswordController extends Controller
             ], 500);
         }
     }
+
 
     // 4. Superadmin melihat semua permintaan reset
     public function listResetRequests()

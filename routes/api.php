@@ -87,6 +87,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Approve reset password (superadmin)
     Route::post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']);
+
+    Route::post('/reset/decline/{id}', [ResetPasswordController::class, 'declineRequest']);
 });
 
 
