@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('profile_photo')->nullable()->after('nama_pengguna');
-            $table->string('phone_number')->nullable()->after('profile_photo');
+            
+            // Ubah phone_number: tidak nullable dan default-nya string kosong
+            $table->string('phone_number')->default('')->after('profile_photo');
+            
             $table->enum('status', ['active', 'inactive'])->default('active')->after('phone_number');
         });
     }

@@ -16,7 +16,7 @@ class AdminManagementController extends Controller
             'name' => 'required|string|max:255',
             'nama_pengguna' => 'required|string|max:255|unique:users',
             'phone_number' => 'nullable|string|max:20',
-            'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // validasi image
+            'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'password' => 'required|string|min:6|confirmed',
         ]);
 
@@ -27,21 +27,16 @@ class AdminManagementController extends Controller
         $admin = new User();
         $admin->name = $request->name;
         $admin->nama_pengguna = $request->nama_pengguna;
-        $admin->phone_number = $request->phone_number;
+        $admin->phone_number = $request->input('phone_number', ''); // <- tidak null
         $admin->password = Hash::make($request->password);
         $admin->plain_password = $request->password;
         $admin->role = 'admin';
         $admin->status = 'active';
 
-        // Upload dan simpan profile_photo jika ada file
         if ($request->hasFile('profile_photo')) {
             $file = $request->file('profile_photo');
             $filename = 'profile_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
-            // Simpan ke disk 'public' di folder 'profile_photos'
             $file->storeAs('profile_photos', $filename, 'public');
-
-            // Simpan path ke DB dengan prefix storage supaya bisa diakses via URL /storage/profile_photos/xxx.jpg
             $admin->profile_photo = 'storage/profile_photos/' . $filename;
         }
 
@@ -87,7 +82,7 @@ class AdminManagementController extends Controller
             'name' => 'sometimes|string|max:255',
             'nama_pengguna' => 'sometimes|string|max:255|unique:users,nama_pengguna,' . $admin->id,
             'phone_number' => 'sometimes|string|max:20',
-            'profile_photo' => 'sometimes|image|mimes:jpeg,png,jpg|max:2048', // validasi image
+            'profile_photo' => 'sometimes|image|mimes:jpeg,png,jpg|max:2048',
             'password' => 'sometimes|string|min:6|confirmed',
         ]);
 
@@ -98,18 +93,18 @@ class AdminManagementController extends Controller
         if ($request->has('name')) {
             $admin->name = $request->name;
         }
+
         if ($request->has('nama_pengguna')) {
             $admin->nama_pengguna = $request->nama_pengguna;
         }
+
         if ($request->has('phone_number')) {
-            $admin->phone_number = $request->phone_number;
+            $admin->phone_number = $request->input('phone_number', '');
         }
 
-        // Upload dan simpan profile_photo jika ada file
         if ($request->hasFile('profile_photo')) {
             $file = $request->file('profile_photo');
             $filename = 'profile_' . $admin->id . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
             $file->storeAs('profile_photos', $filename, 'public');
             $admin->profile_photo = 'storage/profile_photos/' . $filename;
         }
@@ -118,7 +113,6 @@ class AdminManagementController extends Controller
             $admin->password = Hash::make($request->password);
             $admin->plain_password = $request->password;
         }
-
 
         $admin->save();
 
