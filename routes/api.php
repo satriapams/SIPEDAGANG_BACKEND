@@ -62,21 +62,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-
+    
     // Profil User (Admin & Superadmin)
     Route::post('/user/update-profile', [UserProfileController::class, 'updateProfile']);
     Route::post('/user/update-status/{id}', [UserProfileController::class, 'updateStatus']);
 
-    // Pengadaan
-    Route::prefix('pengadaan')->group(function () {
-        Route::post('/', [PengadaanController::class, 'store']);
-        Route::get('/', [PengadaanController::class, 'index']);
-        Route::get('/suplier/{nama}', [PengadaanController::class, 'getSuplierData']);
-        Route::get('/{id}', [PengadaanController::class, 'show']);
-        Route::put('/{id}', [PengadaanController::class, 'update']);
-        Route::delete('/{id}', [PengadaanController::class, 'destroy']);
-        Route::get('/{id}/download', [PengadaanController::class, 'download']);
-    });
+
 
     // Admin management (akses superadmin & admin)
     Route::get('/admin/list/{id_admin}', [AdminManagementController::class, 'show']);
@@ -89,6 +80,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']);
 
     Route::post('/reset/decline/{id}', [ResetPasswordController::class, 'declineRequest']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    Route::prefix('pengadaan')->group(function () {
+        Route::post('/', [PengadaanController::class, 'store']);
+        Route::get('/', [PengadaanController::class, 'index']);
+        Route::get('/suplier/{nama}', [PengadaanController::class, 'getSuplierData']);
+        Route::get('/{id}', [PengadaanController::class, 'show']);
+        Route::put('/{id}', [PengadaanController::class, 'update']);
+        Route::delete('/{id}', [PengadaanController::class, 'destroy']);
+        Route::get('/{id}/download', [PengadaanController::class, 'download']);
+    });
 });
 
 
