@@ -12,6 +12,10 @@ class AdminManagementController extends Controller
     // Tambah admin baru
     public function store(Request $request)
     {
+        $request->merge([
+            'phone_number' => $request->input('phone_number', '') ?? '',
+        ]);
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'nama_pengguna' => 'required|string|max:255|unique:users',
@@ -27,7 +31,7 @@ class AdminManagementController extends Controller
         $admin = new User();
         $admin->name = $request->name;
         $admin->nama_pengguna = $request->nama_pengguna;
-        $admin->phone_number = $request->input('phone_number', ''); // <- tidak null
+        $admin->phone_number = $request->phone_number ?? '';
         $admin->password = Hash::make($request->password);
         $admin->plain_password = $request->password;
         $admin->role = 'admin';
@@ -73,15 +77,16 @@ class AdminManagementController extends Controller
     // Update data admin
     public function update(Request $request, $id_admin)
     {
-        \Log::info('Request files: ', $request->allFiles());
-        \Log::info('Has file profile_photo? ', [$request->hasFile('profile_photo')]);
-
         $admin = User::where('role', 'admin')->findOrFail($id_admin);
+
+        $request->merge([
+            'phone_number' => $request->input('phone_number', '') ?? '',
+        ]);
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'nama_pengguna' => 'sometimes|string|max:255|unique:users,nama_pengguna,' . $admin->id,
-            'phone_number' => 'sometimes|string|max:20',
+            'phone_number' => 'nullable|string|max:20',
             'profile_photo' => 'sometimes|image|mimes:jpeg,png,jpg|max:2048',
             'password' => 'sometimes|string|min:6|confirmed',
         ]);
@@ -93,13 +98,11 @@ class AdminManagementController extends Controller
         if ($request->has('name')) {
             $admin->name = $request->name;
         }
-
         if ($request->has('nama_pengguna')) {
             $admin->nama_pengguna = $request->nama_pengguna;
         }
-
         if ($request->has('phone_number')) {
-            $admin->phone_number = $request->input('phone_number', '');
+            $admin->phone_number = $request->phone_number ?? '';
         }
 
         if ($request->hasFile('profile_photo')) {
