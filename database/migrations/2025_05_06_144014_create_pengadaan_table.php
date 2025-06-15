@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('nama_perusahaan');
             $table->string('jenis_bank');
             $table->string('no_rekening');
+            $table->string('atasnama_rekening');
     
             // No preorder dan pengadaan
             $table->string('no_preorder');
@@ -31,7 +32,7 @@ return new class extends Migration
     
             // Pembayaran
             $table->string('jumlah_pembayaran');
-            $table->integer('spp');
+            $table->string('spp')->nullable(); // ✅ DIUBAH dari integer ke string
     
             $table->timestamps();
         });

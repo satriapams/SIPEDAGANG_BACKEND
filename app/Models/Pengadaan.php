@@ -13,6 +13,7 @@ class Pengadaan extends Model
         'nama_perusahaan',
         'jenis_bank',
         'no_rekening',
+        'atasnama_rekening',
         'no_preorder',
         'tanggal_pengadaan',
         'jenis_pengadaan_barang',

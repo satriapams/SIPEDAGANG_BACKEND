@@ -13,27 +13,55 @@ class PengadaanController extends Controller
     public function store(Request $request)
     {
         try {
-        $request->validate([
-            'nama_suplier' => 'required|string',
-            'nama_perusahaan' => 'required|string',
-            'jenis_bank' => 'required|in:MANDIRI,BCA,BRI,BANK JATENG,BNI',
-            'no_rekening' => 'required|string',
-            'no_preorder' => ['required', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
-            'tanggal_pengadaan' => 'required|date',
-            'jenis_pengadaan_barang' => 'required|string',
-            'kuantum' => ['required', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
-            'in_data' => 'nullable|array',
-            'in_data.*.no_in' => 'nullable|numeric',
-            'in_data.*.tanggal_in' => 'nullable|date',
-            'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
-            'jumlah_pembayaran' => ['required', 'regex:/^\d+(\.\d+)?\s*[A-Za-z]+$/i'],
-            'spp' => 'required|integer',
-        ]);
+            $request->validate([
+                'nama_suplier' => 'required|string',
+                'nama_perusahaan' => 'required|string',
+                'jenis_bank' => [
+                    'required',
+                    'string',
+                    function ($attribute, $value, $fail) {
+                        $allowed = ['MANDIRI', 'BCA', 'BRI', 'BANK JATENG', 'BNI'];
+                        if (!in_array(strtoupper($value), $allowed) && strlen($value) < 3) {
+                            $fail("Bank tidak valid atau terlalu pendek.");
+                        }
+                    },
+                ],
+                'no_rekening' => 'required|string',
+                'atasnama_rekening' => 'required|string',
+                'no_preorder' => ['required', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
+                'tanggal_pengadaan' => 'required|date',
+                'jenis_pengadaan_barang' => 'required|string',
+                'kuantum' => ['required', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+                'in_data' => 'nullable|array',
+                'in_data.*.no_in' => 'nullable|numeric',
+                'in_data.*.tanggal_in' => 'nullable|date',
+                'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+                'spp' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+            ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validasi gagal',
                 'errors' => $e->errors(),
             ], 422);
+        }
+
+        $jumlahPembayaran = '';
+        $totalJumlah = 0;
+        $satuan = '';
+
+        if ($request->has('in_data') && is_array($request->in_data)) {
+            foreach ($request->in_data as $item) {
+                if (isset($item['kuantum_in'])) {
+                    preg_match('/([\d.]+)\s*(KG|LITER|PCS)/i', $item['kuantum_in'], $match);
+                    if ($match) {
+                        $totalJumlah += (float)$match[1];
+                        $satuan = strtoupper($match[2]);
+                    }
+                }
+            }
+            if ($totalJumlah > 0 && $satuan) {
+                $jumlahPembayaran = $totalJumlah . ' ' . $satuan;
+            }
         }
 
         $existing = Pengadaan::where('no_preorder', $request->no_preorder)->first();
@@ -45,11 +73,22 @@ class PengadaanController extends Controller
                 strtoupper($existing->jenis_pengadaan_barang) === strtoupper($request->jenis_pengadaan_barang)
             ) {
                 $existing->kuantum = $this->jumlahkanKuantum($existing->kuantum, $request->kuantum);
+                $existingInData = $existing->in_data ? json_decode($existing->in_data, true) : [];
+                $incomingInData = $request->in_data ?? [];
+
+                if (is_array($incomingInData)) {
+                    $mergedInData = array_merge($existingInData, $incomingInData);
+                    $existing->in_data = json_encode($mergedInData);
+                    $existing->jumlah_pembayaran = $this->hitungJumlahPembayaran($mergedInData);
+                }
+
                 $existing->save();
 
-                return response()->json(['message' => 'Data berhasil diperbarui dengan penambahan kuantum.'], 200);
+                return response()->json(['message' => 'Data berhasil diperbarui dengan penambahan kuantum dan in_data.'], 200);
             } else {
-                return response()->json(['message' => 'Gagal menambahkan: no_preorder sudah digunakan oleh data dengan suplier/perusahaan/barang yang berbeda.'], 409);
+                return response()->json([
+                    'message' => 'Gagal menambahkan: no_preorder sudah digunakan oleh data dengan suplier/perusahaan/barang yang berbeda.'
+                ], 409);
             }
         }
 
@@ -58,6 +97,7 @@ class PengadaanController extends Controller
         $pengadaan->nama_perusahaan = $request->nama_perusahaan;
         $pengadaan->jenis_bank = strtoupper($request->jenis_bank);
         $pengadaan->no_rekening = $request->no_rekening;
+        $pengadaan->atasnama_rekening = $request->atasnama_rekening;
         $pengadaan->no_preorder = $request->no_preorder;
         $pengadaan->tanggal_pengadaan = $request->tanggal_pengadaan;
 
@@ -67,13 +107,32 @@ class PengadaanController extends Controller
 
         $pengadaan->kuantum = strtoupper($request->kuantum);
         $pengadaan->in_data = json_encode($request->in_data);
-        $pengadaan->jumlah_pembayaran = strtoupper($request->jumlah_pembayaran);
-        $pengadaan->spp = $request->spp;
+        $pengadaan->jumlah_pembayaran = $jumlahPembayaran;
+        $pengadaan->spp = $request->filled('spp') ? (string)$request->spp : '';
         $pengadaan->user_id = auth()->id();
         $pengadaan->save();
 
         return response()->json(['message' => 'Data berhasil disimpan'], 201);
     }
+
+    private function hitungJumlahPembayaran(array $inData): string
+    {
+        $total = 0;
+        $satuan = '';
+
+        foreach ($inData as $item) {
+            if (isset($item['kuantum_in'])) {
+                // Pisahkan angka dan satuan
+                if (preg_match('/^(\d+(?:\.\d+)?)\s*(KG|LITER|PCS)$/i', strtoupper($item['kuantum_in']), $match)) {
+                    $total += (float)$match[1];
+                    $satuan = strtoupper($match[2]); // Ambil satuan dari salah satu input
+                }
+            }
+        }
+
+        return $total > 0 ? $total . ' ' . $satuan : '';
+    }
+
 
     private function jumlahkanKuantum($kuantumLama, $kuantumBaru)
     {
@@ -88,25 +147,15 @@ class PengadaanController extends Controller
         return $total . ' ' . strtoupper($matchLama[2]);
     }
 
-    public function getSuplierData($nama)
-    {
-        $data = Pengadaan::where('nama_suplier', $nama)
-            ->latest('created_at')
-            ->first(['nama_perusahaan', 'jenis_bank', 'no_rekening']);
-
-        if (!$data) {
-            return response()->json(['message' => 'Data suplier tidak ditemukan'], 404);
-        }
-
-        return response()->json($data);
-    }
-
     public function index(Request $request)
     {
         $user = Auth::user();
         $search = $request->query('search');
         $bulan = $request->query('bulan');
+        $tanggalAwal = $request->query('tanggal_awal'); // YYYY-MM-DD
+        $tanggalAkhir = $request->query('tanggal_akhir'); // YYYY-MM-DD
         $perPage = $request->query('per_page', 10);
+
         $query = Pengadaan::with('user');
 
         if ($user->role === 'admin') {
@@ -132,10 +181,19 @@ class PengadaanController extends Controller
             }
         }
 
+        if ($tanggalAwal && $tanggalAkhir) {
+            try {
+                $query->whereBetween('tanggal_pengadaan', [$tanggalAwal, $tanggalAkhir]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD.'], 422);
+            }
+        }
+
         $pengadaan = $query->orderByDesc('tanggal_pengadaan')->paginate($perPage);
 
         return response()->json($pengadaan);
     }
+
 
     public function show($id)
     {
@@ -149,24 +207,33 @@ class PengadaanController extends Controller
     {
         $pengadaan = Pengadaan::findOrFail($id);
         $this->authorizeAccess($pengadaan);
+
         try {
             $request->validate([
                 'nama_suplier' => 'sometimes|string',
                 'nama_perusahaan' => 'sometimes|string',
-                'jenis_bank' => 'sometimes|in:MANDIRI,BCA,BRI,BANK JATENG,BNI',
+                'jenis_bank' => [
+                    'sometimes',
+                    'string',
+                    function ($attribute, $value, $fail) {
+                        $allowed = ['MANDIRI', 'BCA', 'BRI', 'BANK JATENG', 'BNI'];
+                        if (!in_array(strtoupper($value), $allowed) && strlen($value) < 3) {
+                            $fail("Bank tidak valid atau terlalu pendek.");
+                        }
+                    },
+                ],
                 'no_rekening' => 'sometimes|string',
+                'atasnama_rekening' => 'sometimes|string',
                 'no_preorder' => ['sometimes', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
                 'tanggal_pengadaan' => 'sometimes|date',
                 'jenis_pengadaan_barang' => 'sometimes|string',
-                'kuantum' => ['sometimes', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
+                'kuantum' => ['sometimes', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
                 'in_data' => 'nullable|array',
                 'in_data.*.no_in' => 'nullable|numeric',
                 'in_data.*.tanggal_in' => 'nullable|date',
-                'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
-                'jumlah_pembayaran' => ['sometimes', 'regex:/^\d+\s?(KG|LITER|PCS)$/i'],
-                'spp' => 'sometimes|integer',
-        ]);
-
+                'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+                'spp' => ['sometimes', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+            ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validasi gagal',
@@ -190,12 +257,26 @@ class PengadaanController extends Controller
             $data['kuantum'] = strtoupper($request->kuantum);
         }
 
-        if ($request->has('jumlah_pembayaran')) {
-            $data['jumlah_pembayaran'] = strtoupper($request->jumlah_pembayaran);
-        }
-
         if ($request->has('in_data')) {
             $data['in_data'] = json_encode($request->in_data);
+            $totalJumlah = 0;
+            $satuan = '';
+            foreach ($request->in_data as $item) {
+                if (isset($item['kuantum_in'])) {
+                    preg_match('/([\d.]+)\s*(KG|LITER|PCS)/i', $item['kuantum_in'], $match);
+                    if ($match) {
+                        $totalJumlah += (float)$match[1];
+                        $satuan = strtoupper($match[2]);
+                    }
+                }
+            }
+            if ($totalJumlah > 0 && $satuan) {
+                $data['jumlah_pembayaran'] = $totalJumlah . ' ' . $satuan;
+            }
+        }
+
+        if ($request->has('spp')) {
+            $data['spp'] = $request->filled('spp') ? (string)$request->spp : '';
         }
 
         $pengadaan->update($data);

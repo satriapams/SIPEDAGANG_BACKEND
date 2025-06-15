@@ -54,6 +54,7 @@ class DatabaseSeeder extends Seeder
                 'nama_perusahaan' => 'PT Sumber Makmur Abadi',
                 'jenis_bank' => $banks[array_rand($banks)],
                 'no_rekening' => rand(1000000000, 9999999999),
+                'atasnama_rekening' => 'mas dapin',
                 'no_preorder' => sprintf('%04d/%02d/PO%03d/2025', rand(1000, 9999), rand(1, 12), rand(100, 999)),
                 'tanggal_pengadaan' => $tanggal_pengadaan,
                 'jenis_pengadaan_barang' => "Barang $i",
