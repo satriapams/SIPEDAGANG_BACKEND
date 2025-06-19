@@ -22,6 +22,11 @@ class Pengadaan extends Model
         'jumlah_pembayaran',
         'spp',
         'user_id',
+        'harga_sebelum_pajak', 
+        'dpp', 
+        'ppn_total', 
+        'pph_total', 
+        'nominal'
     ];
 
     public function user()

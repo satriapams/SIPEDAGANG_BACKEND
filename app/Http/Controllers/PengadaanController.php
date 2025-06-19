@@ -6,6 +6,10 @@ use App\Models\Pengadaan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Http\Controllers\PengaturanPengadaanController;
+use App\Http\Controllers\DataPemohonController;
+use App\Models\PengaturanPengadaan;
+use App\Models\DataPemohon;
 
 
 class PengadaanController extends Controller
@@ -92,6 +96,13 @@ class PengadaanController extends Controller
             }
         }
 
+        $pengaturan = PengaturanPengadaan::where('jenis_pengadaan_barang', strtoupper($request->jenis_pengadaan_barang))->first();
+        if (!$pengaturan) {
+            return response()->json([
+                'message' => 'Jenis pengadaan barang belum terdaftar di pengaturan. Silakan tambahkan terlebih dahulu.'
+            ], 400);
+        }
+
         $pengadaan = new Pengadaan();
         $pengadaan->nama_suplier = $request->nama_suplier;
         $pengadaan->nama_perusahaan = $request->nama_perusahaan;
@@ -110,6 +121,26 @@ class PengadaanController extends Controller
         $pengadaan->jumlah_pembayaran = $jumlahPembayaran;
         $pengadaan->spp = $request->filled('spp') ? (string)$request->spp : '';
         $pengadaan->user_id = auth()->id();
+
+        // Perhitungan pajak dan nominal
+        
+        if ($pengaturan) {
+            preg_match('/([\d.]+)/', $jumlahPembayaran, $matches);
+            $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
+
+            $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
+            $dpp = $hargaSebelumPajak * (100 / 111);
+            $ppn = $dpp * ($pengaturan->ppn / 100);
+            $pph = $dpp * ($pengaturan->pph / 100);
+            $nominal = $dpp - $pph;
+
+            $pengadaan->harga_sebelum_pajak = round($hargaSebelumPajak, 2);
+            $pengadaan->dpp = round($dpp, 2);
+            $pengadaan->ppn_total = round($ppn, 2);
+            $pengadaan->pph_total = round($pph, 2);
+            $pengadaan->nominal = round($nominal, 2);
+        }
+
         $pengadaan->save();
 
         return response()->json(['message' => 'Data berhasil disimpan'], 201);
@@ -280,6 +311,34 @@ class PengadaanController extends Controller
         }
 
         $pengadaan->update($data);
+        $pengaturan = PengaturanPengadaan::where('jenis_pengadaan_barang', $pengadaan->jenis_pengadaan_barang)->first();
+        if (!$pengaturan) {
+            return response()->json([
+                'message' => 'Jenis pengadaan barang belum terdaftar di pengaturan. Tidak bisa menghitung nominal.'
+            ], 400);
+        }
+
+
+        // Perhitungan ulang jika ada perubahan jenis_pengadaan_barang atau jumlah_pembayaran
+        $pengaturan = PengaturanPengadaan::where('jenis_pengadaan_barang', $pengadaan->jenis_pengadaan_barang)->first();
+        if ($pengaturan) {
+            preg_match('/([\d.]+)/', $pengadaan->jumlah_pembayaran, $matches);
+            $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
+
+            $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
+            $dpp = $hargaSebelumPajak * (100 / 111);
+            $ppn = $dpp * ($pengaturan->ppn / 100);
+            $pph = $dpp * ($pengaturan->pph / 100);
+            $nominal = $dpp - $pph;
+
+            $pengadaan->harga_sebelum_pajak = round($hargaSebelumPajak, 2);
+            $pengadaan->dpp = round($dpp, 2);
+            $pengadaan->ppn_total = round($ppn, 2);
+            $pengadaan->pph_total = round($pph, 2);
+            $pengadaan->nominal = round($nominal, 2);
+
+            $pengadaan->save();
+        }
 
         return response()->json(['message' => 'Data berhasil diperbarui']);
     }

@@ -35,6 +35,13 @@ return new class extends Migration
             $table->string('spp')->nullable(); // ✅ DIUBAH dari integer ke string
     
             $table->timestamps();
+
+            $table->decimal('harga_sebelum_pajak', 15, 2)->nullable();
+            $table->decimal('dpp', 15, 2)->nullable();
+            $table->decimal('ppn_total', 15, 2)->nullable();
+            $table->decimal('pph_total', 15, 2)->nullable();
+            $table->decimal('nominal', 15, 2)->nullable();
+            
         });
     }
 

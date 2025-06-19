@@ -8,6 +8,7 @@ use App\Http\Controllers\ResetPasswordController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\DataPemohonController;
 use App\Models\User;
+use App\Http\Controllers\PengaturanPengadaanController;
 
 /*
 |--------------------------------------------------------------------------
@@ -115,6 +116,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reset/list', [ResetPasswordController::class, 'listResetRequests']);
     Route::post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']);
     Route::post('/reset/decline/{id}', [ResetPasswordController::class, 'declineRequest']);
+
+    Route::get('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'index']);
+    Route::post('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'store']);
+    Route::get('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'show']);
+    Route::put('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'update']);
+    Route::delete('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'destroy']);
 });
 
 /*
