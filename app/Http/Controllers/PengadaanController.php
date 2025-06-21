@@ -225,6 +225,22 @@ class PengadaanController extends Controller
         return response()->json($pengadaan);
     }
 
+    public function clear()
+    {
+        $user = Auth::user();
+
+        $query = Pengadaan::with('user');
+
+        if ($user->role === 'admin') {
+            $query->where('user_id', $user->id);
+        }
+
+        $pengadaan = $query->orderByDesc('tanggal_pengadaan')->get();
+
+        return response()->json($pengadaan);
+    }
+
+
 
     public function show($id)
     {

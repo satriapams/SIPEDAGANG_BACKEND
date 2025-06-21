@@ -108,20 +108,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/data-pemohon/detail/{nama_perusahaan}', [DataPemohonController::class, 'getByPerusahaan']);
 
 
-    // 🔒 Upload Excel (convert to CSV & import)
-    
+    Route::get('/pengadaanclear', [PengadaanController::class, 'clear']);
 
 
     // 🔒 Reset Password Approval
-    Route::get('/reset/list', [ResetPasswordController::class, 'listResetRequests']);
-    Route::post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']);
-    Route::post('/reset/decline/{id}', [ResetPasswordController::class, 'declineRequest']);
 
-    Route::get('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'index']);
-    Route::post('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'store']);
-    Route::get('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'show']);
-    Route::put('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'update']);
-    Route::delete('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'destroy']);
+
+
 });
 
 /*
@@ -132,4 +125,14 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum', 'role:superadmin'])->group(function () {
     Route::post('/admin', [AdminManagementController::class, 'store']);   // Tambah Admin
     Route::get('/admin/list', [UserProfileController::class, 'listAdmins']); // Lihat Semua Admin
+
+    Route::get('/reset/list', [ResetPasswordController::class, 'listResetRequests']);
+    Route::post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']);
+    Route::post('/reset/decline/{id}', [ResetPasswordController::class, 'declineRequest']);
+
+    Route::get('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'index']);
+    Route::post('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'store']);
+    Route::get('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'show']);
+    Route::put('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'update']);
+    Route::delete('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'destroy']);
 });
