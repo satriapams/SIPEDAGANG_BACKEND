@@ -279,7 +279,7 @@ class PengadaanController extends Controller
                 'in_data.*.no_in' => 'nullable|numeric',
                 'in_data.*.tanggal_in' => 'nullable|date',
                 'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
-                'spp' => ['sometimes', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+                'spp' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
             ]);
         } catch (ValidationException $e) {
             return response()->json([
