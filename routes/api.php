@@ -16,7 +16,7 @@ use App\Http\Controllers\PengaturanPengadaanController;
 |--------------------------------------------------------------------------
 */
 
-// 🔓 Login
+// ðŸ”“ Login
 Route::post('/login', function (Request $request) {
     $request->validate([
         'nama_pengguna' => 'required|string',
@@ -41,7 +41,7 @@ Route::post('/login', function (Request $request) {
     ]);
 });
 
-// 🔓 Reset Password (tanpa login)
+// ðŸ”“ Reset Password (tanpa login)
 Route::post('/reset/request', [ResetPasswordController::class, 'requestReset']);
 Route::post('/reset/password', [ResetPasswordController::class, 'resetPassword']);
 
@@ -52,26 +52,26 @@ Route::post('/reset/password', [ResetPasswordController::class, 'resetPassword']
 */
 
 Route::middleware('auth:sanctum')->group(function () {
-    // 🔒 Logout
+    // ðŸ”’ Logout
     Route::post('/logout', function (Request $request) {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out']);
     });
 
-    // 🔒 Get Current User
+    // ðŸ”’ Get Current User
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 
-    // 🔒 User Profile
+    // ðŸ”’ User Profile
     Route::post('/user/update-profile', [UserProfileController::class, 'updateProfile']);
     Route::post('/user/update-status/{id}', [UserProfileController::class, 'updateStatus']);
 
-    // 🔒 Admin Management (edit data admin)
+    // ðŸ”’ Admin Management (edit data admin)
     Route::get('/admin/list/{id_admin}', [AdminManagementController::class, 'show']);
     Route::put('/admin/list/{id_admin}', [AdminManagementController::class, 'update']);
 
-    // 🔒 Pengadaan
+    // ðŸ”’ Pengadaan
     Route::prefix('pengadaan')->group(function () {
         Route::post('/', [PengadaanController::class, 'store']);
         Route::get('/', [PengadaanController::class, 'index']);
@@ -81,20 +81,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/download', [PengadaanController::class, 'download']);
     });
 
-    // 🔒 Data Pemohon
+    // ðŸ”’ Data Pemohon
     Route::prefix('pemohon')->group(function () {
-        // ✅ GET All with Pagination + Search
+        // âœ… GET All with Pagination + Search
         Route::get('/', [DataPemohonController::class, 'index']); // Now supports pagination & search
 
         Route::get('/{id}', [DataPemohonController::class, 'show']);
 
-        // ✅ Manual Add
+        // âœ… Manual Add
         Route::post('/', [DataPemohonController::class, 'store']);
 
-        // ✅ Update dengan POST method override
+        // âœ… Update dengan POST method override
         Route::put('/{id}', [DataPemohonController::class, 'update']); // Gunakan _method=PUT
 
-        // ✅ Delete dengan POST method override
+        // âœ… Delete dengan POST method override
         Route::delete('/{id}', [DataPemohonController::class, 'destroy']); // Gunakan _method=DELETE
         
         
@@ -111,7 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/pengadaanclear', [PengadaanController::class, 'clear']);
 
 
-    // 🔒 Reset Password Approval
+    // ðŸ”’ Reset Password Approval
 
 
 

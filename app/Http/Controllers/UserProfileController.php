@@ -11,6 +11,11 @@ class UserProfileController extends Controller
     // Admin atau Superadmin mengupdate profil mereka sendiri
     public function updateProfile(Request $request)
     {
+        $request->merge([
+            'phone_number' => $request->input('phone_number', '') ?? '',
+        ]);
+
+        
         $request->validate([
             'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'phone_number' => 'nullable|string|max:15',
@@ -18,19 +23,17 @@ class UserProfileController extends Controller
 
         $user = Auth::user();
 
-        // Jika ada file yang diupload
         if ($request->hasFile('profile_photo')) {
             $file = $request->file('profile_photo');
-            $filename = 'profile_' . $user->id . '.' . $file->getClientOriginalExtension();
-
-            // Simpan ke disk 'public' => storage/app/public/profile_photos
+            $filename = 'profile_' . $user->id . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
             $file->storeAs('profile_photos', $filename, 'public');
-
-            // Simpan path ke DB (akses URL: /storage/profile_photos/xxx.jpg)
             $user->profile_photo = 'storage/profile_photos/' . $filename;
         }
 
-        $user->phone_number = $request->phone_number;
+        if ($request->has('phone_number')) {
+            $user->phone_number = $request->phone_number;
+        }
+
         $user->save();
 
         return response()->json([
@@ -38,6 +41,7 @@ class UserProfileController extends Controller
             'profile_photo' => $user->profile_photo
         ]);
     }
+
 
     // Superadmin mengubah status user
     public function updateStatus(Request $request, $id)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PengaturanPengadaan;
+use App\Models\Pengadaan;
 use Illuminate\Http\Request;
 
 class PengaturanPengadaanController extends Controller
@@ -31,14 +32,14 @@ class PengaturanPengadaanController extends Controller
         $validated['jenis_pengadaan_barang'] = strtoupper($validated['jenis_pengadaan_barang']);
         $validated['satuan'] = strtoupper($validated['satuan']);
 
-        // Validasi satuan hanya huruf
+        // Validasi satuan hanya huruf besar A-Z
         if (!preg_match('/^[A-Z]+$/', $validated['satuan'])) {
             return response()->json(['message' => 'Satuan hanya boleh huruf A-Z'], 422);
         }
 
-        // Cegah duplikasi jenis_pengadaan_barang
-        $existing = PengaturanPengadaan::where('jenis_pengadaan_barang', $validated['jenis_pengadaan_barang'])->first();
-        if ($existing) {
+        // Cek duplikasi
+        $exists = PengaturanPengadaan::where('jenis_pengadaan_barang', $validated['jenis_pengadaan_barang'])->first();
+        if ($exists) {
             return response()->json([
                 'message' => 'Jenis pengadaan barang sudah ada, tidak boleh duplikat.'
             ], 409);
@@ -49,16 +50,10 @@ class PengaturanPengadaanController extends Controller
 
         $data = PengaturanPengadaan::create($validated);
 
-        if ($data) {
-            return response()->json([
-                'message' => 'Pengaturan berhasil dibuat',
-                'data' => $data
-            ], 201);
-        } else {
-            return response()->json([
-                'message' => 'Gagal menyimpan data'
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'Pengaturan berhasil dibuat',
+            'data' => $data
+        ], 201);
     }
 
     public function show($id)
@@ -98,16 +93,34 @@ class PengaturanPengadaanController extends Controller
         $validated['ppn'] = $validated['ppn'] ?? $item->ppn;
         $validated['pph'] = $validated['pph'] ?? $item->pph;
 
-        $success = $item->update($validated);
+        $item->update($validated);
 
-        if ($success) {
-            return response()->json([
-                'message' => 'Pengaturan berhasil diperbarui',
-                'data' => $item
+        // ✅ Update ulang semua data pengadaan yang pakai jenis ini
+        $pengadaans = Pengadaan::where('jenis_pengadaan_barang', $validated['jenis_pengadaan_barang'])->get();
+
+        foreach ($pengadaans as $pengadaan) {
+            preg_match('/([\d.]+)/', $pengadaan->jumlah_pembayaran, $matches);
+            $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
+
+            $hargaSebelumPajak = $jumlah * $validated['harga_per_satuan'];
+            $dpp = $hargaSebelumPajak * (100 / 111);
+            $ppn = $dpp * ($validated['ppn'] / 100);
+            $pph = $dpp * ($validated['pph'] / 100);
+            $nominal = $dpp - $pph;
+
+            $pengadaan->update([
+                'harga_sebelum_pajak' => round($hargaSebelumPajak, 2),
+                'dpp' => round($dpp, 2),
+                'ppn_total' => round($ppn, 2),
+                'pph_total' => round($pph, 2),
+                'nominal' => round($nominal, 2),
             ]);
-        } else {
-            return response()->json(['message' => 'Gagal memperbarui data'], 500);
         }
+
+        return response()->json([
+            'message' => 'Pengaturan berhasil diperbarui dan semua pengadaan terkait telah dihitung ulang',
+            'data' => $item
+        ]);
     }
 
     public function destroy($id)
@@ -118,12 +131,8 @@ class PengaturanPengadaanController extends Controller
             return response()->json(['message' => 'Data tidak ditemukan'], 404);
         }
 
-        $success = $item->delete();
+        $item->delete();
 
-        if ($success) {
-            return response()->json(['message' => 'Pengaturan berhasil dihapus']);
-        } else {
-            return response()->json(['message' => 'Gagal menghapus data'], 500);
-        }
+        return response()->json(['message' => 'Pengaturan berhasil dihapus']);
     }
 }

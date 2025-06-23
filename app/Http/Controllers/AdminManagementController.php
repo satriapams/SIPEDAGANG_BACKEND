@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage; // tambahkan ini di atas
+
 
 class AdminManagementController extends Controller
 {
@@ -106,11 +108,18 @@ class AdminManagementController extends Controller
         }
 
         if ($request->hasFile('profile_photo')) {
+            // Hapus file lama jika ada
+            if ($admin->profile_photo && Storage::disk('public')->exists(str_replace('storage/', '', $admin->profile_photo))) {
+                Storage::disk('public')->delete(str_replace('storage/', '', $admin->profile_photo));
+            }
+        
+            // Upload file baru
             $file = $request->file('profile_photo');
             $filename = 'profile_' . $admin->id . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
             $file->storeAs('profile_photos', $filename, 'public');
             $admin->profile_photo = 'storage/profile_photos/' . $filename;
         }
+
 
         if ($request->filled('password')) {
             $admin->password = Hash::make($request->password);
