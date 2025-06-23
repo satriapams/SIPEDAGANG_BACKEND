@@ -22,21 +22,28 @@ class PengaturanPengadaanController extends Controller
     {
         $validated = $request->validate([
             'jenis_pengadaan_barang' => 'required|string',
-            'satuan' => 'required|in:KG,LITER,PCS',
+            'satuan' => 'required|string|min:2|max:20',
             'harga_per_satuan' => 'required|numeric|min:0',
             'ppn' => 'nullable|numeric|min:0|max:100',
             'pph' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        $validated['jenis_pengadaan_barang'] = strtoupper($validated['jenis_pengadaan_barang']);
+        $validated['satuan'] = strtoupper($validated['satuan']);
+
+        // Validasi satuan hanya huruf
+        if (!preg_match('/^[A-Z]+$/', $validated['satuan'])) {
+            return response()->json(['message' => 'Satuan hanya boleh huruf A-Z'], 422);
+        }
+
         // Cegah duplikasi jenis_pengadaan_barang
-        $existing = PengaturanPengadaan::where('jenis_pengadaan_barang', strtoupper($validated['jenis_pengadaan_barang']))->first();
+        $existing = PengaturanPengadaan::where('jenis_pengadaan_barang', $validated['jenis_pengadaan_barang'])->first();
         if ($existing) {
             return response()->json([
                 'message' => 'Jenis pengadaan barang sudah ada, tidak boleh duplikat.'
             ], 409);
         }
 
-        $validated['jenis_pengadaan_barang'] = strtoupper($validated['jenis_pengadaan_barang']);
         $validated['ppn'] = $validated['ppn'] ?? 12;
         $validated['pph'] = $validated['pph'] ?? 1.5;
 
@@ -75,13 +82,19 @@ class PengaturanPengadaanController extends Controller
 
         $validated = $request->validate([
             'jenis_pengadaan_barang' => 'required|string',
-            'satuan' => 'required|in:KG,LITER,PCS',
+            'satuan' => 'required|string|min:2|max:20',
             'harga_per_satuan' => 'required|numeric|min:0',
             'ppn' => 'nullable|numeric|min:0|max:100',
             'pph' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $validated['jenis_pengadaan_barang'] = strtoupper($validated['jenis_pengadaan_barang']);
+        $validated['satuan'] = strtoupper($validated['satuan']);
+
+        if (!preg_match('/^[A-Z]+$/', $validated['satuan'])) {
+            return response()->json(['message' => 'Satuan hanya boleh huruf A-Z'], 422);
+        }
+
         $validated['ppn'] = $validated['ppn'] ?? $item->ppn;
         $validated['pph'] = $validated['pph'] ?? $item->pph;
 
