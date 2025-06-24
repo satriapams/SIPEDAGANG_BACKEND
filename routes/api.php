@@ -110,6 +110,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/pengadaanclear', [PengadaanController::class, 'clear']);
 
+    Route::get('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'index']);
+
+    Route::get('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'show']);
+
 
     // ðŸ”’ Reset Password Approval
 
@@ -130,9 +134,8 @@ Route::middleware(['auth:sanctum', 'role:superadmin'])->group(function () {
     Route::post('/reset/approve/{id}', [ResetPasswordController::class, 'approveRequest']);
     Route::post('/reset/decline/{id}', [ResetPasswordController::class, 'declineRequest']);
 
-    Route::get('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'index']);
+
     Route::post('/pengaturan-pengadaan', [PengaturanPengadaanController::class, 'store']);
-    Route::get('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'show']);
     Route::put('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'update']);
     Route::delete('/pengaturan-pengadaan/{id}', [PengaturanPengadaanController::class, 'destroy']);
 });
