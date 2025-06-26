@@ -257,10 +257,11 @@ class PengadaanController extends Controller
 
         try {
             $request->validate([
-                'nama_suplier' => 'sometimes|string',
-                'nama_perusahaan' => 'sometimes|string',
+                'nama_suplier' => 'sometimes|required|string',
+                'nama_perusahaan' => 'sometimes|required|string',
                 'jenis_bank' => [
                     'sometimes',
+                    'required',
                     'string',
                     function ($attribute, $value, $fail) {
                         $allowed = ['MANDIRI', 'BCA', 'BRI', 'BANK JATENG', 'BNI'];
@@ -269,23 +270,49 @@ class PengadaanController extends Controller
                         }
                     },
                 ],
-                'no_rekening' => 'sometimes|string',
-                'atasnama_rekening' => 'sometimes|string',
-                'no_preorder' => ['sometimes', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
-                'tanggal_pengadaan' => 'sometimes|date',
-                'jenis_pengadaan_barang' => 'sometimes|string',
-                'kuantum' => ['sometimes', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+                'no_rekening' => 'sometimes|required|string',
+                'atasnama_rekening' => 'sometimes|required|string',
+                'no_preorder' => ['sometimes', 'required', 'regex:/^\d{4}\/\d{2}\/[A-Za-z0-9]+\/\d{4}$/'],
+                'tanggal_pengadaan' => 'sometimes|required|date',
+                'jenis_pengadaan_barang' => 'sometimes|required|string',
+                'kuantum' => ['sometimes', 'required', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
                 'in_data' => 'nullable|array',
                 'in_data.*.no_in' => 'nullable|numeric',
                 'in_data.*.tanggal_in' => 'nullable|date',
                 'in_data.*.kuantum_in' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
                 'spp' => ['nullable', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
+            ], [
+                'nama_suplier.required' => 'Nama Supplier harus diisi',
+                'nama_perusahaan.required' => 'Nama Perusahaan harus diisi',
+                'jenis_bank.required' => 'Jenis Bank harus diisi',
+                'no_rekening.required' => 'Nomor Rekening harus diisi',
+                'atasnama_rekening.required' => 'Atas Nama Rekening harus diisi',
+                'no_preorder.required' => 'Nomor PO harus diisi',
+                'no_preorder.regex' => 'Format Nomor PO tidak valid',
+                'tanggal_pengadaan.required' => 'Tanggal Pengadaan harus diisi',
+                'tanggal_pengadaan.date' => 'Tanggal Pengadaan tidak valid',
+                'jenis_pengadaan_barang.required' => 'Jenis Pengadaan harus diisi',
+                'kuantum.required' => 'Kuantum harus diisi',
+                'kuantum.regex' => 'Format kuantum tidak valid',
             ]);
         } catch (ValidationException $e) {
+            $pesan = 'Validasi gagal: ';
+            $pesan .= implode(', ', collect($e->errors())->flatten()->toArray());
+
             return response()->json([
-                'message' => 'Validasi gagal',
-                'errors' => $e->errors(),
+                'message' => $pesan
             ], 422);
+        }
+
+        // Validasi tambahan untuk in_data jika diberikan
+        if ($request->filled('in_data')) {
+            foreach ($request->in_data as $item) {
+                if (empty($item['no_in']) || empty($item['tanggal_in']) || empty($item['kuantum_in'])) {
+                    return response()->json([
+                        'message' => 'Validasi gagal: Minimal satu Data IN harus diisi lengkap'
+                    ], 422);
+                }
+            }
         }
 
         $data = $request->all();
@@ -327,6 +354,7 @@ class PengadaanController extends Controller
         }
 
         $pengadaan->update($data);
+
         $pengaturan = PengaturanPengadaan::where('jenis_pengadaan_barang', $pengadaan->jenis_pengadaan_barang)->first();
         if (!$pengaturan) {
             return response()->json([
@@ -334,30 +362,27 @@ class PengadaanController extends Controller
             ], 400);
         }
 
+        // Perhitungan ulang jika ada perubahan
+        preg_match('/([\d.]+)/', $pengadaan->jumlah_pembayaran, $matches);
+        $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
 
-        // Perhitungan ulang jika ada perubahan jenis_pengadaan_barang atau jumlah_pembayaran
-        $pengaturan = PengaturanPengadaan::where('jenis_pengadaan_barang', $pengadaan->jenis_pengadaan_barang)->first();
-        if ($pengaturan) {
-            preg_match('/([\d.]+)/', $pengadaan->jumlah_pembayaran, $matches);
-            $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
+        $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
+        $dpp = $hargaSebelumPajak * (100 / 111);
+        $ppn = $dpp * ($pengaturan->ppn / 100);
+        $pph = $dpp * ($pengaturan->pph / 100);
+        $nominal = $dpp - $pph;
 
-            $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
-            $dpp = $hargaSebelumPajak * (100 / 111);
-            $ppn = $dpp * ($pengaturan->ppn / 100);
-            $pph = $dpp * ($pengaturan->pph / 100);
-            $nominal = $dpp - $pph;
+        $pengadaan->harga_sebelum_pajak = round($hargaSebelumPajak, 2);
+        $pengadaan->dpp = round($dpp, 2);
+        $pengadaan->ppn_total = round($ppn, 2);
+        $pengadaan->pph_total = round($pph, 2);
+        $pengadaan->nominal = round($nominal, 2);
 
-            $pengadaan->harga_sebelum_pajak = round($hargaSebelumPajak, 2);
-            $pengadaan->dpp = round($dpp, 2);
-            $pengadaan->ppn_total = round($ppn, 2);
-            $pengadaan->pph_total = round($pph, 2);
-            $pengadaan->nominal = round($nominal, 2);
-
-            $pengadaan->save();
-        }
+        $pengadaan->save();
 
         return response()->json(['message' => 'Data berhasil diperbarui']);
     }
+
 
     public function destroy($id)
     {
