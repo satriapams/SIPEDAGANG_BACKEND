@@ -17,5 +17,6 @@ class PengaturanPengadaan extends Model
         'harga_per_satuan',
         'ppn',
         'pph',
+        'tanpa_pajak',
     ];
 }

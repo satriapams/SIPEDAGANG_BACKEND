@@ -27,26 +27,25 @@ class PengaturanPengadaanController extends Controller
             'harga_per_satuan' => 'required|numeric|min:0',
             'ppn' => 'nullable|numeric|min:0|max:100',
             'pph' => 'nullable|numeric|min:0|max:100',
+            'tanpa_pajak' => 'nullable|boolean',
         ]);
 
         $validated['jenis_pengadaan_barang'] = strtoupper($validated['jenis_pengadaan_barang']);
         $validated['satuan'] = strtoupper($validated['satuan']);
+        $validated['tanpa_pajak'] = $request->boolean('tanpa_pajak', false);
+        $validated['ppn'] = $validated['ppn'] ?? 12;
+        $validated['pph'] = $validated['pph'] ?? 1.5;
 
-        // Validasi satuan hanya huruf besar A-Z
         if (!preg_match('/^[A-Z]+$/', $validated['satuan'])) {
             return response()->json(['message' => 'Satuan hanya boleh huruf A-Z'], 422);
         }
 
-        // Cek duplikasi
         $exists = PengaturanPengadaan::where('jenis_pengadaan_barang', $validated['jenis_pengadaan_barang'])->first();
         if ($exists) {
             return response()->json([
                 'message' => 'Jenis pengadaan barang sudah ada, tidak boleh duplikat.'
             ], 409);
         }
-
-        $validated['ppn'] = $validated['ppn'] ?? 12;
-        $validated['pph'] = $validated['pph'] ?? 1.5;
 
         $data = PengaturanPengadaan::create($validated);
 
@@ -81,40 +80,52 @@ class PengaturanPengadaanController extends Controller
             'harga_per_satuan' => 'required|numeric|min:0',
             'ppn' => 'nullable|numeric|min:0|max:100',
             'pph' => 'nullable|numeric|min:0|max:100',
+            'tanpa_pajak' => 'nullable|boolean',
         ]);
 
         $validated['jenis_pengadaan_barang'] = strtoupper($validated['jenis_pengadaan_barang']);
         $validated['satuan'] = strtoupper($validated['satuan']);
+        $validated['tanpa_pajak'] = $request->boolean('tanpa_pajak', false);
+        $validated['ppn'] = $validated['ppn'] ?? $item->ppn;
+        $validated['pph'] = $validated['pph'] ?? $item->pph;
 
         if (!preg_match('/^[A-Z]+$/', $validated['satuan'])) {
             return response()->json(['message' => 'Satuan hanya boleh huruf A-Z'], 422);
         }
 
-        $validated['ppn'] = $validated['ppn'] ?? $item->ppn;
-        $validated['pph'] = $validated['pph'] ?? $item->pph;
-
         $item->update($validated);
 
-        // ✅ Update ulang semua data pengadaan yang pakai jenis ini
+        // 🔁 Update semua pengadaan terkait jenis ini
         $pengadaans = Pengadaan::where('jenis_pengadaan_barang', $validated['jenis_pengadaan_barang'])->get();
 
         foreach ($pengadaans as $pengadaan) {
             preg_match('/([\d.]+)/', $pengadaan->jumlah_pembayaran, $matches);
             $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
 
-            $hargaSebelumPajak = $jumlah * $validated['harga_per_satuan'];
-            $dpp = $hargaSebelumPajak * (100 / 111);
-            $ppn = $dpp * ($validated['ppn'] / 100);
-            $pph = $dpp * ($validated['pph'] / 100);
-            $nominal = $dpp - $pph;
+            if ($validated['tanpa_pajak']) {
+                // Jenis ini tidak kena pajak
+                $pengadaan->update([
+                    'harga_sebelum_pajak' => null,
+                    'dpp' => null,
+                    'ppn_total' => null,
+                    'pph_total' => null,
+                    'nominal' => round($jumlah * $validated['harga_per_satuan'], 2),
+                ]);
+            } else {
+                $hargaSebelumPajak = $jumlah * $validated['harga_per_satuan'];
+                $dpp = $hargaSebelumPajak * (100 / 111);
+                $ppn = $dpp * ($validated['ppn'] / 100);
+                $pph = $dpp * ($validated['pph'] / 100);
+                $nominal = $dpp - $pph;
 
-            $pengadaan->update([
-                'harga_sebelum_pajak' => round($hargaSebelumPajak, 2),
-                'dpp' => round($dpp, 2),
-                'ppn_total' => round($ppn, 2),
-                'pph_total' => round($pph, 2),
-                'nominal' => round($nominal, 2),
-            ]);
+                $pengadaan->update([
+                    'harga_sebelum_pajak' => round($hargaSebelumPajak, 2),
+                    'dpp' => round($dpp, 2),
+                    'ppn_total' => round($ppn, 2),
+                    'pph_total' => round($pph, 2),
+                    'nominal' => round($nominal, 2),
+                ]);
+            }
         }
 
         return response()->json([

@@ -128,18 +128,27 @@ class PengadaanController extends Controller
             preg_match('/([\d.]+)/', $jumlahPembayaran, $matches);
             $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
 
-            $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
-            $dpp = $hargaSebelumPajak * (100 / 111);
-            $ppn = $dpp * ($pengaturan->ppn / 100);
-            $pph = $dpp * ($pengaturan->pph / 100);
-            $nominal = $dpp - $pph;
+            if ($pengaturan->tanpa_pajak) {
+                $pengadaan->nominal = round($jumlah * $pengaturan->harga_per_satuan, 2);
+                $pengadaan->harga_sebelum_pajak = null;
+                $pengadaan->dpp = null;
+                $pengadaan->ppn_total = null;
+                $pengadaan->pph_total = null;
+            } else {
+                $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
+                $dpp = $hargaSebelumPajak * (100 / 111);
+                $ppn = $dpp * ($pengaturan->ppn / 100);
+                $pph = $dpp * ($pengaturan->pph / 100);
+                $nominal = $dpp - $pph;
 
-            $pengadaan->harga_sebelum_pajak = round($hargaSebelumPajak, 2);
-            $pengadaan->dpp = round($dpp, 2);
-            $pengadaan->ppn_total = round($ppn, 2);
-            $pengadaan->pph_total = round($pph, 2);
-            $pengadaan->nominal = round($nominal, 2);
+                $pengadaan->harga_sebelum_pajak = round($hargaSebelumPajak, 2);
+                $pengadaan->dpp = round($dpp, 2);
+                $pengadaan->ppn_total = round($ppn, 2);
+                $pengadaan->pph_total = round($pph, 2);
+                $pengadaan->nominal = round($nominal, 2);
+            }
         }
+
 
         $pengadaan->save();
 
@@ -304,7 +313,6 @@ class PengadaanController extends Controller
             ], 422);
         }
 
-        // Validasi tambahan untuk in_data jika diberikan
         if ($request->filled('in_data')) {
             foreach ($request->in_data as $item) {
                 if (empty($item['no_in']) || empty($item['tanggal_in']) || empty($item['kuantum_in'])) {
@@ -362,23 +370,32 @@ class PengadaanController extends Controller
             ], 400);
         }
 
-        // Perhitungan ulang jika ada perubahan
         preg_match('/([\d.]+)/', $pengadaan->jumlah_pembayaran, $matches);
         $jumlah = isset($matches[1]) ? (float)$matches[1] : 0;
 
-        $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
-        $dpp = $hargaSebelumPajak * (100 / 111);
-        $ppn = $dpp * ($pengaturan->ppn / 100);
-        $pph = $dpp * ($pengaturan->pph / 100);
-        $nominal = $dpp - $pph;
+        if ($pengaturan->tanpa_pajak) {
+            $pengadaan->update([
+                'harga_sebelum_pajak' => null,
+                'dpp' => null,
+                'ppn_total' => null,
+                'pph_total' => null,
+                'nominal' => round($jumlah * $pengaturan->harga_per_satuan, 2)
+            ]);
+        } else {
+            $hargaSebelumPajak = $jumlah * $pengaturan->harga_per_satuan;
+            $dpp = $hargaSebelumPajak * (100 / 111);
+            $ppn = $dpp * ($pengaturan->ppn / 100);
+            $pph = $dpp * ($pengaturan->pph / 100);
+            $nominal = $dpp - $pph;
 
-        $pengadaan->harga_sebelum_pajak = round($hargaSebelumPajak, 2);
-        $pengadaan->dpp = round($dpp, 2);
-        $pengadaan->ppn_total = round($ppn, 2);
-        $pengadaan->pph_total = round($pph, 2);
-        $pengadaan->nominal = round($nominal, 2);
-
-        $pengadaan->save();
+            $pengadaan->update([
+                'harga_sebelum_pajak' => round($hargaSebelumPajak, 2),
+                'dpp' => round($dpp, 2),
+                'ppn_total' => round($ppn, 2),
+                'pph_total' => round($pph, 2),
+                'nominal' => round($nominal, 2)
+            ]);
+        }
 
         return response()->json(['message' => 'Data berhasil diperbarui']);
     }
