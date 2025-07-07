@@ -34,6 +34,7 @@ class PengadaanController extends Controller
                 'atasnama_rekening' => 'required|string',
                 'no_preorder' => 'required|string',
                 'tanggal_pengadaan' => 'required|date',
+                'tanggal_pengajuan' => 'required|date',
                 'jenis_pengadaan_barang' => 'required|string',
                 'kuantum' => ['required', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
                 'in_data' => 'nullable|array',
@@ -111,6 +112,7 @@ class PengadaanController extends Controller
         $pengadaan->atasnama_rekening = $request->atasnama_rekening;
         $pengadaan->no_preorder = $request->no_preorder;
         $pengadaan->tanggal_pengadaan = $request->tanggal_pengadaan;
+        $pengadaan->tanggal_pengajuan = $request->tanggal_pengajuan;
 
         $allowedJenis = ['BERAS', 'GABAH', 'MINYAK'];
         $inputJenis = strtoupper($request->jenis_pengadaan_barang);
@@ -283,6 +285,7 @@ class PengadaanController extends Controller
                 'atasnama_rekening' => 'sometimes|required|string',
                 'no_preorder' => 'required|string',
                 'tanggal_pengadaan' => 'sometimes|required|date',
+                'tanggal_pengajuan' => 'sometimes|required|date',
                 'jenis_pengadaan_barang' => 'sometimes|required|string',
                 'kuantum' => ['sometimes', 'required', 'regex:/^\d+(\.\d+)?\s*(KG|LITER|PCS)$/i'],
                 'in_data' => 'nullable|array',
@@ -300,6 +303,8 @@ class PengadaanController extends Controller
                 'no_preorder.regex' => 'Format Nomor PO tidak valid',
                 'tanggal_pengadaan.required' => 'Tanggal Pengadaan harus diisi',
                 'tanggal_pengadaan.date' => 'Tanggal Pengadaan tidak valid',
+                'tanggal_pengajuan.required' => 'Tanggal Pengajuan harus diisi',
+                'tanggal_pengajuan.date' => 'Tanggal Pengajuan tidak valid',
                 'jenis_pengadaan_barang.required' => 'Jenis Pengadaan harus diisi',
                 'kuantum.required' => 'Kuantum harus diisi',
                 'kuantum.regex' => 'Format kuantum tidak valid',

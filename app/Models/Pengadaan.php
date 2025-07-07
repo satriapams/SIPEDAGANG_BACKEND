@@ -16,6 +16,7 @@ class Pengadaan extends Model
         'atasnama_rekening',
         'no_preorder',
         'tanggal_pengadaan',
+        'tanggal_pengajuan',
         'jenis_pengadaan_barang',
         'kuantum',
         'in_data',
